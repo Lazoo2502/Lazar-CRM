@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react'
 import { ListTodo, CalendarDays, UserPlus, UserCheck, Download, LogOut } from 'lucide-react'
 
 import { supabase } from './supabase.js'
+import {
+  connecterGoogle,
+  googleConnecte,
+  setGoogleConnecte,
+  calendrierOp,
+} from './google.js'
 import Connexion from './components/Connexion.jsx'
 import { chargerDonnees, sauvegarder, importerDepuisLocal, lireLocal } from './storage.js'
 import { exporterExcel } from './excel.js'
@@ -80,6 +86,34 @@ export default function App() {
     if (chargement || !session) return
     sauvegarder(clients, dems)
   }, [clients, dems, chargement, session])
+
+  // Retour de la connexion Google (?google=ok / erreur dans l'URL).
+  const [googleOk, setGoogleOk] = useState(googleConnecte())
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const g = params.get('google')
+    if (g === 'ok') {
+      setGoogleConnecte(true)
+      setGoogleOk(true)
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (g === 'erreur') {
+      alert('La connexion à Google Agenda a échoué. Réessaie.')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  // Bouton de test : crée un événement de démonstration demain dans l'agenda.
+  async function testerGoogle() {
+    const demain = new Date(Date.now() + 86400000)
+    demain.setHours(10, 0, 0, 0)
+    const event = {
+      summary: 'Test CRM ✅',
+      start: { dateTime: demain.toISOString() },
+      end: { dateTime: new Date(demain.getTime() + 3600000).toISOString() },
+    }
+    const id = await calendrierOp('create', event)
+    alert(id ? 'Événement test créé dans ton agenda Google ✅' : 'Échec — vois la console (F12)')
+  }
 
   // Importe les données locales dans Supabase puis recharge.
   async function importerLocal() {
@@ -425,6 +459,15 @@ export default function App() {
         <div className="entete-haut">
           <h1>CRM Patrimoine</h1>
           <div className="entete-actions">
+            {googleOk ? (
+              <button className="btn btn-gris" onClick={testerGoogle} title="Créer un événement de test">
+                <CalendarDays size={18} /> Tester l'agenda
+              </button>
+            ) : (
+              <button className="btn btn-gris" onClick={connecterGoogle}>
+                <CalendarDays size={18} /> Connecter Google
+              </button>
+            )}
             <button className="btn btn-export" onClick={() => exporterExcel(clients, dems)}>
               <Download size={18} /> Exporter en Excel
             </button>
